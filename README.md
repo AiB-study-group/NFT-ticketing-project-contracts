@@ -1,6 +1,6 @@
 # Contract Workflow
 
-**<u>Make sure to read the [TEAM.md](TEAM.md) file, thanks**
+**<u>Make sure to read the [TEAM.md](TEAM.md) file, thanks</u>**
 
 ## Contract Description
 
