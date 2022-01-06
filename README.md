@@ -24,7 +24,7 @@
 
 ## Design Patterns
 
-1. ERC-721 VS ERC-1155 (I propose for ERC-721 but don't know how to fix the problem in #2 using ERC-721 yet)
+1. ERC-721 VS ERC-1155 (I propose for ERC-1155 but don't know how to fix the problem in #2 using ERC-1155 yet)
 
 2. How the contract will have multiple NFTs, if each event will be having their own unique quantity? (Metadata of all the events will be the same for now, like `Name, price, quantity, etc.,`)
 
