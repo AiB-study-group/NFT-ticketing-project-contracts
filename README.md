@@ -1,5 +1,7 @@
 # Contract Workflow
 
+**<u>Make sure to read the [TEAM.md](TEAM.md) file, thanks**
+
 ## Contract Description
 
 ### Description
@@ -28,7 +30,7 @@ An NFT enabled tickets mechanism that allows event creators to easily create and
 
 ```
 
-### Workflow from the `Event Attendants` point of view
+### Workflow from the `Event Attendees` point of view
 
 ```text
 1. A user will be able to buy a ticket
