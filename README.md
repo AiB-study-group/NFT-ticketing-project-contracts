@@ -41,6 +41,21 @@ An NFT enabled tickets mechanism that allows event creators to easily create and
 
 ---
 
+## User stories
+
+| As a/an        | I want to...                                                                             | So that...                                                                |
+|----------------|------------------------------------------------------------------------------------------|---------------------------------------------------------------------------|
+| Contract Owner | deploy the contract and distribute the access roles                                      | I can allow organizers to create an NFT ticketing system for their events |
+| Contract Owner | accept or reject an event proposal                                                       | I can only support events that align with my goals/vision                 |
+| Event Manager  | propose for event creation by submitting the event name, symbol, price, and total supply | I can sell tickets to attendees                                           |
+| Event Manager  | delete events by refunding the attendees and burn the remaining token supply             | Nobody purchases the tickets                                              |
+| Event Manager  | refund the attendees after event cancellation                                            | People who purchased can get their money back                             |
+| Event Attendee | buy event tickets                                                                        | I can attend the event and get access to certain services                 |
+| Event Attendee | request for a ticket refund                                                              | I can have the ticket price sent back to my wallet                        |
+| Event Attendee | view the ticket price                                                                    | I can determine whether to purchase them or not                           |
+| Event Attendee | view the number of remaining tickets                                                     | I can determine whether I need to purchase them now or later              |
+| Event Attendee | view the event organizers' information                                                   | I can determine whether I want to purchase the tickets or not             |
+
 ## Data
 
 ### Data that need to be stored on the blockchain and their visibility
