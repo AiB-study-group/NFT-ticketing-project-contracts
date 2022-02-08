@@ -2,117 +2,210 @@
 
 pragma solidity 0.8.8;
 
-/// @title NFTickets
+/// @title NFTTickets
 /// @author AiB Study Group on 01/2022
 
-contract NFTickets {
-    //TODO: Needs more properties
-    struct TicketDetails {
-        uint256 purchasePrice;
-        uint256 sellingPrice;
-        bool forSale;
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "./TicketNFT.sol";
+
+contract NFTTickets is Ownable, TicketNFT {
+
+    struct Event {
+        uint256 eventId;
+        address eventManager; 
+        uint256 maxTicketsCount; 
+        uint256 startDate; 
+        uint256 endDate; 
+        bool isApproved; 
+        bool isSaleReady; 
+        uint256[] pricesForEachTicketType;
+        Ticket[] ticketsMinted; 
+        string metadataURI;
     }
+
+    struct Ticket {
+        uint256 eventId; // Linked Event ID
+        uint256 ticketId; // ticketId is the tokenId
+        TicketType ticketType;
+        uint256 purchaseDate; //EPOCH date of ticket purchase date
+        uint256 price;
+    }
+
+    enum TicketType {SPEAKER, ORGANIZER, ATTENDEE, SPONSOR}
+
+    mapping (uint256 => Event) public eventsDB;
+    mapping (uint256 => mapping (uint256 => Ticket)) public eventTickets;
+    mapping(uint256 => address) public managerOfEvent;
+
+    event EventCreated(uint256 eventId);
+    event SaleStarted(uint256 eventId, uint256 maxTicketsCount, bool isSaleReady);
 
     // Modifiers
-    /// @notice This modifier restricts access of running the function assigned to this modifier to only the Contract Admin
-    /// @dev This shouldn't be used everywhere, only when needed
-    modifier onlyOwner() {
+
+    modifier isEventManager(uint256 eventID_) {
+        require(
+            eventsDB[eventID_].eventManager == msg.sender,
+            "Only Event Managers are allowed to do this action"
+        );
         _;
     }
 
-    /// @notice This modifier restricts access of running the function assigned to this modifier to only the Event Manager Role
-    modifier isEventManager() {
-        _;
-    }
-
-    /// @notice This modifier restricts access of running the function assigned to this modifier to only the Event Attendee
-    modifier isAttendee() {
+    modifier isSaleReady(uint256 eventID_) {
+        require(
+            eventsDB[eventID_].isSaleReady == true,
+            "Event ticket sales should be approved first"
+        );
         _;
     }
 
     // Functions
+    function generateRandNum() public view returns (uint256) {
+        uint256 randomNumber = uint256(
+            keccak256(
+                abi.encodePacked(
+                    block.number,
+                    block.difficulty,
+                    block.timestamp,
+                    msg.sender
+                )
+            )
+        );
+        return (randomNumber % (1000000 - 100000)) + 100000;
+    }
 
-    /// @notice Create the Tickets NFT Collection of the Event
-    /// @dev TODO: How we will determine the event manager if we're restricting it to isEventManager{} before assigning the event manager :D
-    /// @param TODO: Parameters of the NFT Collection struct
-    /// @return TODO: The whole NFT Collection ID? The NFT Collection as an array{bad idea I guess}?
-    function createEvent() isEventManager {}
+    function createEvent(
+        uint256 amount_,
+        uint256 startDate_,
+        uint256 endDate_,
+        uint256[] memory prices_,
+        string memory metadataURI_
+    ) public payable {
+        uint256 _eventID = generateRandNum();
 
-    /// @notice Allows the Contract Admin to disable a specific event before it's grace period has passed
-    /// @dev Should check if the grace period has passed or not first
-    /// @param TODO: eventID
-    /// @return if the action of disabling the event has been successful or not
-    function disableEvent() onlyOwner {}
+        eventsDB[_eventID].eventId = _eventID;
+        eventsDB[_eventID].eventManager = msg.sender;
+        eventsDB[_eventID].maxTicketsCount = amount_;
+        eventsDB[_eventID].startDate = startDate_;
+        eventsDB[_eventID].endDate = endDate_;
+        eventsDB[_eventID].pricesForEachTicketType = prices_;
+        eventsDB[_eventID].metadataURI = metadataURI_;
 
-    /// @notice This function allows the Attendee to buy the NFT Ticket after the grace period has passed and the tickets are available for sale
-    /// @dev Should check if the grace period has passed first and the tickets are available for sale or not
-    /// @param TODO: WIP
-    /// @return IF the action is successful of not, and the id of the purchased Ticket NFT
-    function buyTickets() {}
+        emit EventCreated(_eventID);
+    }
 
-    /// @notice Allows the Attendee to request a refund {if certain criteria are met} and the middle-man here will be the contract itself. Contract fees aren't refundable.
-    /// @dev Should check first if the event itself has finished or not? A refund grace period has passed or not? etc.,. Should subtract the contract fees when calculating the refund amount
-    /// @param TODO: WIP
-    /// @return If the refund request is successful or not
-    function requestRefund() isAttendee {}
+    function approveEvent(uint256 eventID_) public onlyOwner returns (bool) {
+        require(eventsDB[eventID_].eventId > 0, "Event Not Found");
 
-    /// @notice Allows the Event Manager to refund a specific attendee to disable/restrict his/her access to the event
-    /// @dev Should check if specific criteria are met, like, event start and end dates, refund grace period, etc.,
-    /// @param TODO: WIP
-    /// @return If the refund request is successful or not
-    function refundAttendee() isEventManager {}
+        require(
+            eventsDB[eventID_].isApproved == false,
+            "Event already approved before"
+        );
 
-    /// @notice Allows the Event Manager to refund all attendees all at once
-    /// @dev Only the event manager should be allowed to make this action
-    /// @param TODO: WIP
-    /// @return If the refund request is successful or not
-    function refundAll() isEventManager {}
+        eventsDB[eventID_].isApproved = true;
 
-    /// @notice Allows the contract admin to set and update the commission percentage of the contract fees
-    /// @dev Only the contract admin is allowed to make this action
-    /// @param TODO: WIP
-    /// @return True or False
-    function setCommissionPercentage() onlyOwner {}
+        return true;
+    }
 
-    /// @notice Allows the Contract Admin to withdraw the fees stored in the contract to the ONLY ADDRESS allowed to be transferee
-    /// @dev The transferee address should be declared once in the constructor of the contract or as a CONST variable at the top, and should't be editable
-    /// @param TODO: WIP
-    /// @return If the transfer is successful or not
-    function withdrawCommissions() onlyOwner {}
+    function allowTicketsSale(uint256 eventID_)
+        public
+        isEventManager(eventID_)
+    {
+        require(eventsDB[eventID_].eventId > 0, "Event Not Found");
 
-    /// @notice Allows the msg.sender to be able to get the current price of the ticket, or the nft ticket collection
-    /// @dev Should allow the msg.sender to specify an ID and a type of that ID {either it is a single ticket or an NFT Ticket Collection}
-    /// @param TODO: WIP
-    /// @return The current price of a specific ticket, or a specific NFT Ticket Collection
-    function getTicketPrice() view returns () {}
+        require(
+            eventsDB[eventID_].isApproved == true,
+            "Event should be approved first by the contract admin"
+        );
 
-    /// @notice Allows the msg.sender to get all the remaining IDs of the NFT Ticket Collection and their count
-    /// @dev Is it a good idea to grab all the remaining IDs in a single array? Their should be a way of grabbing all the remaining ticket IDs tho.
-    /// @param TODO: WIP
-    /// @return The number of remaining tickets in a specific NFT Ticket Collection, in an array
-    function getRemainingTickets() view returns () {}
+        require(
+            eventsDB[eventID_].isSaleReady == false,
+            "Event ticket sales already approved by an event manager"
+        );
 
-    /// @notice Allows the msg.sender to get the event manager address/s of a specific event
-    /// @dev
-    /// @param TODO: WIP
-    /// @return The address of the Event Manager/s of a specific event
-    function getOrganizers() view returns () {}
+        require(
+            eventsDB[eventID_].endDate > block.timestamp,
+            "Event has already been ended"
+        );
 
-    /// @notice Allows the msg.sender to get all the event managers address/s of all events
-    /// @dev
-    /// @param TODO: WIP
-    /// @return The address of all Event Manager/s of all events
-    function getAllOrganizers() view returns () {}
+        eventsDB[eventID_].isSaleReady = true; 
 
-    /// @notice Allows the msg.sender to get all the tickets of a specific attendee/user/address for all events or specific ones
-    /// @dev Should allow the msg.sender to specify an address and an ID for the event, if the ID is NULL it should return all available tickets for all events
-    /// @param TODO: WIP
-    /// @return Returns all tickets for specific event or for all events
-    function getTicketCount() view returns () {} // is there a getBalanceOf() function that we can use?
+        emit SaleStarted(eventID_, eventsDB[eventID_].maxTicketsCount, eventsDB[eventID_].isSaleReady);
+    }
 
-    /// @notice Allow the msg.sender to get available events
-    /// @dev Should allow the msg.sender to choose either to get all events including the disabled ones or only active and expired events
-    /// @param TODO: WIP
-    /// @return All available events that met the input data
-    function getAllEvents() view returns () {}
+    function getTicketPrice(uint256 eventID_, TicketType type_) private view returns (uint256) {
+
+        uint256 price;
+
+        if(type_ == TicketType.SPEAKER) {
+            price = eventsDB[eventID_].pricesForEachTicketType[0];
+        } else if (type_ == TicketType.ORGANIZER) {
+            price = eventsDB[eventID_].pricesForEachTicketType[1];
+        } else if (type_ == TicketType.ATTENDEE) {
+            price = eventsDB[eventID_].pricesForEachTicketType[2];
+        } else if (type_ == TicketType.SPONSOR) {
+            price = eventsDB[eventID_].pricesForEachTicketType[3];
+        }
+
+        return price;
+
+    }
+
+    function buyTickets(uint256 eventID_, uint256 numOfTickets_, TicketType type_)
+        public
+        payable
+        isSaleReady(eventID_)
+    {
+        require(
+            eventsDB[eventID_].endDate > block.timestamp,
+            "Event should be started first and/or shouldn't be ended too"
+        );
+
+        require(
+            numOfTickets_ > 0 &&
+                eventsDB[eventID_].maxTicketsCount >= // Number of max allowed tickets to be sold
+                (eventsDB[eventID_].ticketsMinted.length + numOfTickets_), // Number of already purchased tickets
+            "You must supply an amount of tickets that is less than the max allowed tickets to be ever sold"
+        );
+
+        uint256 totalPrice = getTicketPrice(eventID_, type_) * numOfTickets_;
+
+        require(
+            msg.sender.balance >= totalPrice,
+            "Please transfer some ETHer to your wallet first"
+        );
+
+        require(msg.value >= totalPrice, "Insufficient amount of ETHer sent");
+
+        uint256 remainingAmount = totalPrice - msg.value;
+
+        (bool sent,) = msg.sender.call{value: remainingAmount}("");
+
+        require(sent, "Failed to send remaining Ether back to the client");
+
+        for (uint256 i = 0; i < numOfTickets_; i++) {
+
+            uint256 tkId = mintNFT(msg.sender, eventsDB[eventID_].metadataURI);
+
+            uint256 tkPrice = getTicketPrice(eventID_, type_);
+
+            eventsDB[eventID_].ticketsMinted.push(
+                Ticket(
+                    eventID_,
+                    tkId,
+                    type_,
+                    block.timestamp,
+                    tkPrice
+                )
+            );
+
+            eventTickets[eventID_][tkId] = Ticket(
+                eventID_,
+                tkId,
+                type_,
+                block.timestamp,
+                tkPrice
+            );
+
+        }
+    }
 }
